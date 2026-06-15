@@ -10,6 +10,10 @@
 #include <SPI.h>
 #include <SD.h>
 #include <Update.h>
+#include <ESP32-targz.h>
+
+TarGzUnpacker tarGzUpdate;
+#include <ESP32-targz.h> // Do dekompresji GZIP z karty SD
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
@@ -286,40 +290,35 @@ void sdLoggingTask(void *pvParameters) {
 // 5. OBSŁUGA STAGED OTA (Instalacja z SD)
 // ==========================================
 void performStagedOTA() {
-  Serial.println("Rozpoczynam wgrywanie z karty SD...");
+  Serial.println("Rozpoczynam dekompresję GZIP i wgrywanie do Flash...");
   
-  BLEDevice::deinit(true);
+  BLEDevice::deinit(true); // Zwalniamy kilkadziesiąt KB RAM ze stosu Bluetooth dla dekompresora
   delay(500);
 
-  xSemaphoreTake(sdMutex, pdMS_TO_TICKS(100));
-  File file = SD.open("/update.bin", FILE_READ);
-  if (!file) {
-    Serial.println("Błąd: Brak pliku aktualizacji na SD.");
-    xSemaphoreGive(sdMutex);
-    ESP.restart();
-  }
+  xSemaphoreTake(sdMutex, pdMS_TO_TICKS(1000));
 
-  size_t fileSize = file.size();
-  if (!Update.begin(fileSize)) {
-    Update.printError(Serial);
+  if (!SD.exists("/update.bin.gz")) {
+    Serial.println("Błąd: Brak pliku .bin.gz na SD.");
     xSemaphoreGive(sdMutex);
     ESP.restart();
   }
 
   Update.setMD5(expectedMD5.c_str());
-  size_t written = Update.writeStream(file);
 
-  if (Update.end()) {
-    Serial.println("OTA SUKCES! Restart systemu...");
-    file.close();
-    SD.remove("/update.bin");
+  // Dekompresja w locie z pliku GZIP bezpośrednio do partycji Update OTA
+  // Używamy gotowej biblioteki ESP32-targz
+  tarGzUpdate.begin(&Update);
+  bool success = tarGzUpdate.processGzFile(SD, "/update.bin.gz");
+
+  if (success) {
+    Serial.println("OTA SUKCES! Plik zdekompresowany i wgrany. Restart systemu...");
+    SD.remove("/update.bin.gz");
     delay(1000);
     ESP.restart();
   } else {
-    Update.printError(Serial);
-    Serial.println("MD5 BŁĄD! Aktualizacja odrzucona.");
-    file.close();
-    SD.remove("/update.bin");
+    Serial.printf("GZIP/OTA BŁĄD! Aktualizacja odrzucona: %s
+", tarGzUpdate.getErrorName());
+    SD.remove("/update.bin.gz");
     delay(2000);
     ESP.restart();
   }
@@ -402,8 +401,8 @@ class MyCmdCallbacks: public BLECharacteristicCallbacks {
         expectedMD5 = doc["md5"].as<String>();
         expectedChunkIdx = 0;
         xSemaphoreTake(sdMutex, pdMS_TO_TICKS(100));
-        if (SD.exists("/update.bin")) SD.remove("/update.bin");
-        otaFile = SD.open("/update.bin", FILE_WRITE);
+        if (SD.exists("/update.bin.gz")) SD.remove("/update.bin.gz");
+        otaFile = SD.open("/update.bin.gz", FILE_WRITE);
         xSemaphoreGive(sdMutex);
       } else if (cmd == "ota_end") {
         xSemaphoreTake(sdMutex, pdMS_TO_TICKS(100));
