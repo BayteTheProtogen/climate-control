@@ -143,7 +143,7 @@ void processSensors() {
     // Naprawiono wrap-around millis()
     if (currentMillis - (heaterCooldownEnd - 30000) > 30000) {
       isHeaterActive = false;
-      xSemaphoreTake(dataMutex, portMAX_DELAY);
+      xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
       bitClear(bleData.statusFlags, 4);
       xSemaphoreGive(dataMutex);
     } else {
@@ -154,7 +154,7 @@ void processSensors() {
   sensors_event_t hum, temp;
   sht4.getEvent(&hum, &temp);
 
-  xSemaphoreTake(dataMutex, portMAX_DELAY);
+  xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
   bleData.temperature = temp.temperature;
   bleData.humidity = hum.relative_humidity;
 
@@ -196,25 +196,25 @@ void processSensors() {
 void controlLogic() {
   unsigned long currentMillis = millis();
 
-  xSemaphoreTake(dataMutex, portMAX_DELAY);
+  xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
   bool isFanOn = bitRead(bleData.statusFlags, 0);
   float currentTemp = bleData.temperature;
   uint16_t currentMoisture = bleData.soilMoisture;
   xSemaphoreGive(dataMutex);
 
   if (currentTemp >= cfg_fanOnTemp && !isFanOn) {
-    xSemaphoreTake(dataMutex, portMAX_DELAY);
+    xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
     bitSet(bleData.statusFlags, 0); digitalWrite(PIN_RELAY_FAN, HIGH);
     xSemaphoreGive(dataMutex);
   } else if (currentTemp <= cfg_fanOffTemp && isFanOn) {
-    xSemaphoreTake(dataMutex, portMAX_DELAY);
+    xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
     bitClear(bleData.statusFlags, 0); digitalWrite(PIN_RELAY_FAN, LOW);
     xSemaphoreGive(dataMutex);
   }
 
   if (safetyAlarmActive) {
     digitalWrite(PIN_RELAY_VALVE, LOW);
-    xSemaphoreTake(dataMutex, portMAX_DELAY);
+    xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
     bitClear(bleData.statusFlags, 1);
     bitSet(bleData.statusFlags, 2);
     xSemaphoreGive(dataMutex);
@@ -225,7 +225,7 @@ void controlLogic() {
     case IDLE:
       if (currentMoisture < cfg_soilWaterStart) {
         waterState = WATERING; waterStateTimer = currentMillis; wateringSessionStart = currentMillis;
-        xSemaphoreTake(dataMutex, portMAX_DELAY);
+        xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
         bitSet(bleData.statusFlags, 1); digitalWrite(PIN_RELAY_VALVE, HIGH);
         xSemaphoreGive(dataMutex);
       }
@@ -233,7 +233,7 @@ void controlLogic() {
     case WATERING:
       if (currentMillis - waterStateTimer >= cfg_pulseWateringTime) {
         waterState = SOAKING; waterStateTimer = currentMillis;
-        xSemaphoreTake(dataMutex, portMAX_DELAY);
+        xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
         bitClear(bleData.statusFlags, 1); digitalWrite(PIN_RELAY_VALVE, LOW);
         xSemaphoreGive(dataMutex);
       }
@@ -244,7 +244,7 @@ void controlLogic() {
         if (currentMoisture >= cfg_soilWaterStop) waterState = IDLE;
         else {
           waterState = WATERING; waterStateTimer = currentMillis;
-          xSemaphoreTake(dataMutex, portMAX_DELAY);
+          xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
           bitSet(bleData.statusFlags, 1); digitalWrite(PIN_RELAY_VALVE, HIGH);
           xSemaphoreGive(dataMutex);
         }
@@ -267,7 +267,7 @@ void sdLoggingTask(void *pvParameters) {
       if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(5000)) == pdTRUE) {
         File file = SD.open("/historia.csv", FILE_APPEND);
         if (file) {
-          xSemaphoreTake(dataMutex, portMAX_DELAY);
+          xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
           float t = bleData.temperature;
           float h = bleData.humidity;
           uint16_t m = bleData.soilMoisture;
@@ -291,7 +291,7 @@ void performStagedOTA() {
   BLEDevice::deinit(true);
   delay(500);
 
-  xSemaphoreTake(sdMutex, portMAX_DELAY);
+  xSemaphoreTake(sdMutex, pdMS_TO_TICKS(100));
   File file = SD.open("/update.bin", FILE_READ);
   if (!file) {
     Serial.println("Błąd: Brak pliku aktualizacji na SD.");
@@ -374,20 +374,26 @@ class MyCmdCallbacks: public BLECharacteristicCallbacks {
         sht4.setHeater(SHT4X_HIGH_HEATER_1S);
         isHeaterActive = true;
         heaterCooldownEnd = millis() + 30000;
-        xSemaphoreTake(dataMutex, portMAX_DELAY);
+        xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
         bitSet(bleData.statusFlags, 4);
         xSemaphoreGive(dataMutex);
+      } else if (cmd == "reset_alarm") {
+        safetyAlarmActive = false;
+        xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
+        bitClear(bleData.statusFlags, 2);
+        xSemaphoreGive(dataMutex);
+        tone(PIN_BUZZER, 1000, 100);
       } else if (cmd == "force_relay") {
         String relay = doc["relay"].as<String>();
         bool state = doc["state"].as<bool>();
         if (relay == "fan") {
           digitalWrite(PIN_RELAY_FAN, state ? HIGH : LOW);
-          xSemaphoreTake(dataMutex, portMAX_DELAY);
+          xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
           if (state) bitSet(bleData.statusFlags, 0); else bitClear(bleData.statusFlags, 0);
           xSemaphoreGive(dataMutex);
         } else if (relay == "valve") {
           digitalWrite(PIN_RELAY_VALVE, state ? HIGH : LOW);
-          xSemaphoreTake(dataMutex, portMAX_DELAY);
+          xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
           if (state) bitSet(bleData.statusFlags, 1); else bitClear(bleData.statusFlags, 1);
           xSemaphoreGive(dataMutex);
         }
@@ -395,12 +401,12 @@ class MyCmdCallbacks: public BLECharacteristicCallbacks {
         otaModeActive = true;
         expectedMD5 = doc["md5"].as<String>();
         expectedChunkIdx = 0;
-        xSemaphoreTake(sdMutex, portMAX_DELAY);
+        xSemaphoreTake(sdMutex, pdMS_TO_TICKS(100));
         if (SD.exists("/update.bin")) SD.remove("/update.bin");
         otaFile = SD.open("/update.bin", FILE_WRITE);
         xSemaphoreGive(sdMutex);
       } else if (cmd == "ota_end") {
-        xSemaphoreTake(sdMutex, portMAX_DELAY);
+        xSemaphoreTake(sdMutex, pdMS_TO_TICKS(100));
         if (otaFile) otaFile.close();
         xSemaphoreGive(sdMutex);
       }
@@ -420,7 +426,7 @@ class OtaDataCallbacks: public BLECharacteristicCallbacks {
 
       // Zmienione WWR (Write Without Response) - aplikacja może retransmitować zgubiony pakiet
       if (chunkIdx == expectedChunkIdx) {
-        xSemaphoreTake(sdMutex, portMAX_DELAY);
+        xSemaphoreTake(sdMutex, pdMS_TO_TICKS(100));
         otaFile.write(rxData + 2, rxLen - 2);
         xSemaphoreGive(sdMutex);
         expectedChunkIdx++;
@@ -472,11 +478,11 @@ void setup() {
   SPI.begin(18, 19, 23, PIN_SD_CS);
   if (SD.begin(PIN_SD_CS, SPI, 4000000, "/sd", 5, true)) {
     sdCardReady = true;
-    xSemaphoreTake(dataMutex, portMAX_DELAY);
+    xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
     bitSet(bleData.statusFlags, 3);
     xSemaphoreGive(dataMutex);
   } else {
-    xSemaphoreTake(dataMutex, portMAX_DELAY);
+    xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
     bitClear(bleData.statusFlags, 3);
     xSemaphoreGive(dataMutex);
   }
@@ -511,7 +517,7 @@ void setup() {
 void loop() {
   esp_task_wdt_reset();
 
-  xSemaphoreTake(sdMutex, portMAX_DELAY);
+  xSemaphoreTake(sdMutex, pdMS_TO_TICKS(100));
   bool isFileOpen = (otaFile == true);
   xSemaphoreGive(sdMutex);
 
@@ -530,7 +536,7 @@ void loop() {
     }
     
     if (isBleConnected) {
-      xSemaphoreTake(dataMutex, portMAX_DELAY);
+      xSemaphoreTake(dataMutex, pdMS_TO_TICKS(100));
       pStatusChar->setValue((uint8_t*)&bleData, sizeof(SensorDataPacket));
       xSemaphoreGive(dataMutex);
       pStatusChar->notify();

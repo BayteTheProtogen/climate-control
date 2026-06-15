@@ -65,8 +65,14 @@ class BleManager(private val context: Context) {
                 if (statusChar != null) {
                     gatt.setCharacteristicNotification(statusChar, true)
                     val descriptor = statusChar.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
-                    descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                    gatt.writeDescriptor(descriptor)
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        gatt.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                        @Suppress("DEPRECATION")
+                        gatt.writeDescriptor(descriptor)
+                    }
                 }
             }
         }
@@ -102,9 +108,15 @@ class BleManager(private val context: Context) {
     fun sendCommand(jsonPayload: String) {
         val char = bluetoothGatt?.getService(SERVICE_UUID)?.getCharacteristic(CHAR_CMD_UUID)
         char?.let {
-            it.value = jsonPayload.toByteArray()
-            it.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-            bluetoothGatt?.writeCharacteristic(it)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                bluetoothGatt?.writeCharacteristic(it, jsonPayload.toByteArray(), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+            } else {
+                @Suppress("DEPRECATION")
+                it.value = jsonPayload.toByteArray()
+                it.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                @Suppress("DEPRECATION")
+                bluetoothGatt?.writeCharacteristic(it)
+            }
         }
     }
 }

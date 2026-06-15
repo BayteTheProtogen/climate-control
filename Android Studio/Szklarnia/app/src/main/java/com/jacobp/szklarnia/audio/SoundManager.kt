@@ -41,12 +41,19 @@ object SoundManager {
             generatedSnd[idx++] = ((valShort.toInt() and 0xff00) ushr 8).toByte()
         }
 
-        val audioTrack = AudioTrack(
-            AudioManager.STREAM_MUSIC,
-            sampleRate, AudioFormat.CHANNEL_OUT_MONO,
-            AudioFormat.ENCODING_PCM_16BIT, generatedSnd.size,
-            AudioTrack.MODE_STATIC
-        )
+        val audioTrack = AudioTrack.Builder()
+            .setAudioAttributes(android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build())
+            .setAudioFormat(AudioFormat.Builder()
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .setSampleRate(sampleRate)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .build())
+            .setBufferSizeInBytes(generatedSnd.size)
+            .setTransferMode(AudioTrack.MODE_STATIC)
+            .build()
         audioTrack.write(generatedSnd, 0, generatedSnd.size)
         audioTrack.play()
 
