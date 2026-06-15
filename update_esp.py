@@ -1,3 +1,8 @@
+import sys
+
+def main():
+    with open('esp/esp.ino', 'w') as f:
+        f.write('''\
 #include <ArduinoJson.h>
 #include <BLEDevice.h>
 #include <BLEServer.h>
@@ -23,7 +28,7 @@
 #define PIN_SD_CS 5
 
 // --- WATCHDOG (Dla ESP32 Core 3.x) ---
-#define WDT_TIMEOUT 10 
+#define WDT_TIMEOUT 10
 
 // --- STRUKTURA BINARNA (Byte Packing - 12 bajtów) ---
 struct __attribute__((__packed__)) SensorDataPacket {
@@ -102,7 +107,7 @@ void saveSecureCalibration(int dry, int wet) {
 
 void loadSecureConfig() {
   preferences.begin("greenhouse", false);
-  
+
   // Głosowanie większościowe dla AdcDry
   int d1 = preferences.getInt("adcDry_1", 4095);
   int d2 = preferences.getInt("adcDry_2", 4095);
@@ -166,10 +171,10 @@ void processSensors() {
       sht4.setHeater(SHT4X_HIGH_HEATER_1S);
       isHeaterActive = true;
       heaterCooldownEnd = currentMillis + 30000;
-      isHighHumidity = false; 
+      isHighHumidity = false;
       bitSet(bleData.statusFlags, 4);
       xSemaphoreGive(dataMutex);
-      return; 
+      return;
     }
   } else {
     isHighHumidity = false;
@@ -183,7 +188,7 @@ void processSensors() {
     delay(2);
   }
   digitalWrite(PIN_SOIL_VCC, LOW);
-  
+
   rawAdc = sum / 10;
   int moisture = map(rawAdc, cfg_soilAdcDry, cfg_soilAdcWet, 0, 100);
   bleData.soilMoisture = constrain(moisture, 0, 100);
@@ -262,7 +267,7 @@ void controlLogic() {
 void sdLoggingTask(void *pvParameters) {
   for (;;) {
     vTaskDelay(15 * 60 * 1000 / portTICK_PERIOD_MS);
-    
+
     if (sdCardReady && !otaModeActive) {
       if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(5000)) == pdTRUE) {
         File file = SD.open("/historia.csv", FILE_APPEND);
@@ -273,7 +278,7 @@ void sdLoggingTask(void *pvParameters) {
           uint16_t m = bleData.soilMoisture;
           xSemaphoreGive(dataMutex);
 
-          file.printf("%lu,%.1f,%.1f,%d\n", millis() / 60000, t, h, m);
+          file.printf("%lu,%.1f,%.1f,%d\\n", millis() / 60000, t, h, m);
           file.close();
         }
         xSemaphoreGive(sdMutex);
@@ -287,7 +292,7 @@ void sdLoggingTask(void *pvParameters) {
 // ==========================================
 void performStagedOTA() {
   Serial.println("Rozpoczynam wgrywanie z karty SD...");
-  
+
   BLEDevice::deinit(true);
   delay(500);
 
@@ -344,11 +349,11 @@ class MyCmdCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
       String rxValue = pCharacteristic->getValue();
       if (rxValue.length() == 0) return;
-      
+
       JsonDocument doc;
       if(deserializeJson(doc, rxValue)) return;
       String cmd = doc["cmd"].as<String>();
-      
+
       if (cmd == "ping") {
         pCmdChar->setValue("pong");
         pCmdChar->notify();
@@ -440,7 +445,7 @@ class OtaDataCallbacks: public BLECharacteristicCallbacks {
 // ==========================================
 void setup() {
   Serial.begin(115200);
-  
+
   dataMutex = xSemaphoreCreateMutex();
   sdMutex = xSemaphoreCreateMutex();
 
@@ -455,7 +460,7 @@ void setup() {
 
   esp_task_wdt_config_t wdt_config = {
       .timeout_ms = WDT_TIMEOUT * 1000,
-      .idle_core_mask = (1 << portNUM_PROCESSORS) - 1, 
+      .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
       .trigger_panic = true
   };
   esp_task_wdt_init(&wdt_config);
@@ -484,7 +489,7 @@ void setup() {
   xTaskCreatePinnedToCore(sdLoggingTask, "SDTask", 4096, NULL, 1, NULL, 0);
 
   BLEDevice::init("Szklarnia Dziadka");
-  esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_P9); 
+  esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_P9);
   esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, ESP_PWR_LVL_P9);
 
   pServer = BLEDevice::createServer();
@@ -523,12 +528,12 @@ void loop() {
 
   if (currentMillis - lastSensorRead >= 1500) {
     lastSensorRead = currentMillis;
-    
+
     if (!otaModeActive) {
       processSensors();
       controlLogic();
     }
-    
+
     if (isBleConnected) {
       xSemaphoreTake(dataMutex, portMAX_DELAY);
       pStatusChar->setValue((uint8_t*)&bleData, sizeof(SensorDataPacket));
@@ -543,7 +548,13 @@ void loop() {
     if (currentMillis - lastBeep >= 500) {
       lastBeep = currentMillis;
       beepState = !beepState;
-      if (beepState) tone(PIN_BUZZER, 2000, 200); 
+      if (beepState) tone(PIN_BUZZER, 2000, 200);
     }
   }
 }
+'''
+        )
+    print("Zaktualizowano firmware ESP32!")
+
+if __name__ == "__main__":
+    main()
