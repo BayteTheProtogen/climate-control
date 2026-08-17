@@ -1,6 +1,10 @@
 {
-  "app_version": "1.0.3",
-  "firmware_version": "1.0.3",
-  "app_apk_url": "https://github.com/BayteTheProtogen/climate-control/releases/download/v1.0.3/ZielonaPrzystan-debug.apk",
-  "firmware_bin_url": "https://github.com/BayteTheProtogen/climate-control/releases/download/v1.0.3/esp32-firmware.bin.gz"
+  "app_version": "1.0.4",
+  "app_release_url": "https://github.com/BayteTheProtogen/climate-control/releases/download/v1.0.4/ZielonaPrzystan-debug.apk",
+  "firmware_version": "1.0.4",
+  "firmware_url": "https://github.com/BayteTheProtogen/climate-control/releases/download/v1.0.4/esp32-firmware.bin.gz",
+  "firmware_crc32": 1981942250,
+  "firmware_compressed": true,
+  "release_notes": "Naprawiono wyłączanie obu urządzeń jednym przyciskiem. Poprawiono wielkość przycisków włącz/wyłącz w interfejsie.",
+  "release_date": "2026-08-17"
 }
