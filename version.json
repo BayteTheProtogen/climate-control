@@ -1,0 +1,10 @@
+{
+  "app_version": "1.0.0",
+  "app_release_url": "https://github.com/jakub/szklarnia-esp32/releases/download/v1.0.0/szklarnia-app.apk",
+  "firmware_version": "1.0.0",
+  "firmware_url": "https://github.com/jakub/szklarnia-esp32/releases/download/v1.0.0/esp32-firmware.bin.gz",
+  "firmware_crc32": 0,
+  "firmware_compressed": true,
+  "release_notes": "Wersja początkowa: pełna odporność, sterowanie w pętli zamkniętej, obsługa karty SD i OTA.",
+  "release_date": "2026-08-16"
+}
