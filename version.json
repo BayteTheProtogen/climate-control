@@ -1,10 +1,10 @@
 {
-  "app_version": "1.0.6",
-  "app_release_url": "https://github.com/BayteTheProtogen/climate-control/releases/download/v1.0.6/ZielonaPrzystan-debug.apk",
-  "firmware_version": "1.0.6",
-  "firmware_url": "https://github.com/BayteTheProtogen/climate-control/releases/download/v1.0.6/esp32-firmware.bin.gz",
-  "firmware_crc32": 3126122826,
+  "app_version": "1.0.7",
+  "app_release_url": "https://github.com/BayteTheProtogen/climate-control/releases/download/v1.0.7/ZielonaPrzystan-debug.apk",
+  "firmware_version": "1.0.7",
+  "firmware_url": "https://github.com/BayteTheProtogen/climate-control/releases/download/v1.0.7/esp32-firmware.bin.gz",
+  "firmware_crc32": 3457215612,
   "firmware_compressed": true,
-  "release_notes": "Testowe OTA. Zmieniono nazwę na ekranie głównym telefonu.",
+  "release_notes": "Naprawiono problem z uszkadzaniem sprzętowym karty SD poprzez obniżenie prędkości SPI do 4 MHz.",
   "release_date": "2026-08-17"
 }
