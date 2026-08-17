@@ -1,6 +1,6 @@
 {
-  "app_version": "1.0.1",
-  "firmware_version": "1.0.1",
-  "app_apk_url": "https://github.com/BayteTheProtogen/climate-control/releases/download/Test/app-debug.apk",
-  "firmware_bin_url": "https://github.com/BayteTheProtogen/climate-control/releases/download/Test/firmware.bin.gz"
+  "app_version": "1.0.2",
+  "firmware_version": "1.0.2",
+  "app_apk_url": "https://github.com/BayteTheProtogen/climate-control/releases/download/v1.0.2/ZielonaPrzystan-debug.apk",
+  "firmware_bin_url": "https://github.com/BayteTheProtogen/climate-control/releases/download/v1.0.2/esp32-firmware.bin.gz"
 }
